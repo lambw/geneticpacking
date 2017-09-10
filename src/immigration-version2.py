@@ -21,6 +21,7 @@ INITAL_MAX_POPS = 100;
 MUTATION_RATE = 0.01;
 MAX_POPS = 100;
 alfa = 50000;
+kmeanstime = 0;
 
 MEASEQ = [PHY_MEM, CPU_CAPs, IO_CAPs, NET_CAPs];
 
@@ -33,6 +34,25 @@ class Utiltools:
 		t = seq[pos1];
 		seq[pos1] = seq[pos2];
 		seq[pos2] = t;
+	
+	@classmethod
+	def logtime(cls, flag, event, cur=0):
+		if(flag == "start"):
+			start = time.time();
+			print(event+" is started");
+			return start;
+		elif(flag == "end"):
+		        end = time.time() - cur;
+			print(event + "is fininshed cost time in total: "+str(end)+"s");
+			vm = open("../log/run-time.log", "a");
+			vm.write("------->"+event+"takes"+str(end)+"s to be finished\n");
+			return end;
+		elif(flag == "none"):
+			print(event + "is fininshed cost time in total: "+str(cur));
+			vm = open("../log/run-time.log", "a");
+			vm.write("------->"+event+"takes"+str(cur)+"s to be finished\n");
+	
+
 
 	#check if a virtual machine can be contained in a physical machine
 	@classmethod	
@@ -128,6 +148,7 @@ class DataReader:
 		dc["NET_CAPs"] =  data[3];
 		f.close();
 		return dc;
+
 
 class BinItemManager:
 	bins = [];
@@ -326,6 +347,14 @@ class GeneticAlgorithm:
 		sorted(self.cur_pops,key = lambda sol: sol.numsOfitemed());
 		f.write(str(math.log(abs(self.cur_pops[0].rate_value)))+"\t\t\t\t"+str(self.cur_pops[0].numsOfitemed())+"\t\t\t"+str(self.cur_pops[0].solution_vector)+"\n");
 		f.close();
+
+
+	def writePddInfo(self, typename, pdlen, dlen, vmlen, pmlen):
+		notfeasible = True;
+		f  = open("../docs/"+typename+"res.log", "a")
+		f.write("pdlen:"+str(pdlen)+"dlen:"+str(dlen)+"vmlen:"+str(vmlen)+"pmlen:"+str(pmlen)+"\n");
+		f.close();
+
 	
 	def genetic_process(self, error, iterations, p, k):
 		if not self.initalPops:
@@ -345,6 +374,28 @@ class GeneticAlgorithm:
 			print("Completed! %s th iteration"%(i))
 			print('\033[0m');
 		self.temp_pops = copy.deepcopy(self.cur_pops);
+
+	def genetic_process_clusteringbased(self, error, iterations, p, k):
+		if not self.initalPops:
+			self.initalPop();
+		for c in xrange(len(BinItemManager.bins)):
+			BinItemManager.bins[c].restore();
+		for i in range(int(iterations)):
+			print("The pops of this generation is: %d"%(len(self.cur_pops)))
+			print("start k-means...")
+			self.k_means_classify_originalbased(k)
+			print("clustering is done, start to select and crossover")
+			self.selection_and_crossover(k);	
+			print("start mutation...")
+			self.mutation(p);
+			self.writelog("clustermethod");
+			print('\033[1;31;40m');
+			print("Completed! %s th iteration"%(i))
+			print('\033[0m');
+		self.temp_pops = copy.deepcopy(self.cur_pops);
+
+
+
 	
 	def assigngroup(self, assignment, k):
 		for i in range(len(assignment)):
@@ -354,8 +405,24 @@ class GeneticAlgorithm:
 		self.cur_groups = [];
 		for i in range(k):
 			self.cur_groups.append([]);
+
+	def ifPdVectSame(self, vect1, vect2):
+		for i in xrange(len(BinItemManager.bins)):
+			for j in xrange(4):
+				if(vect1[i][j] != vect2[i][j]):
+					return False;	
+		return True;
+
+
+        def ifPdVectContained(self, pd, vect):
+		for i in xrange(len(pd)):
+			if(self.ifPdVectSame(pd[i], vect)):
+				return True;
+		return False;
+		
 				
 	def k_means_classify(self, k):
+		pdlen = 0;
 		lst = [];
 		self.initialgroup(k)
 		print("preparing pn vectors...")
@@ -366,15 +433,52 @@ class GeneticAlgorithm:
 				sample.append(v);	
 			for j in range(len(self.cur_pops[i].solution_vector)):
 				for m in range(len(v)):
-					#sample[self.cur_pops[i].solution_vector[j]][m] += BinItemManager.items[j].class_vect[m];	
-					sample[self.cur_pops[i].solution_vector[j]][m] += float(BinItemManager.items[j].raw_res[m]);	
-			lst.append(sample);
+					sample[self.cur_pops[i].solution_vector[j]][m] += BinItemManager.items[j].class_vect[m];	
+			if(self.ifPdVectContained(lst, sample) is not True):
+				pdlen += 1;
+				lst.append(sample);
+
+	        self.writePddInfo("pddscale", pdlen, len(self.cur_pops), 0, 0);
 		print("data for clustering has been prepared...");
 		print("The size of pn vectors is %s"%(len(lst)));
+
+		start = Utiltools.logtime("start", "classification based kmeans", 0)
 		assignment =  kmeans.kmeans(lst, k);
+		global kmeanstime
+		kmeanstime=kmeanstime+Utiltools.logtime("end", "classification based kmeans", start);
 		print("The size of assignment vector is %s"%(len(assignment)));
 		self.assigngroup(assignment, k);
+
+
+	def k_means_classify_originalbased(self, k):
+		pdlen = 0;
+		lst = [];
+		self.initialgroup(k)
+		print("preparing pn vectors...")
+		for i in range(len(self.cur_pops)):
+			sample = [];
+			for n in range(len(BinItemManager.bins)):
+				v = [0.0, 0.0, 0.0, 0.0];	
+				sample.append(v);	
+			for j in range(len(self.cur_pops[i].solution_vector)):
+				for m in range(len(v)):
+					sample[self.cur_pops[i].solution_vector[j]][m] += float(BinItemManager.items[j].raw_res[m]);	
+			if(self.ifPdVectContained(lst, sample) is not True):
+				pdlen += 1;
+				lst.append(sample);
+
+	        self.writePddInfo("pddscale", pdlen, len(self.cur_pops), 0, 0);
+		print("data for clustering has been prepared...");
+		print("The size of pn vectors is %s"%(len(lst)));
+		start = Utiltools.logtime("start", "non-classification based kmeans", 0);
+		assignment =  kmeans.kmeans(lst, k);
+		global kmeanstime
+		kmeanstime+=Utiltools.logtime("end", "non-classification based kmeans", start);
+		print("The size of assignment vector is %s"%(len(assignment)));
+		self.assigngroup(assignment, k);
+
 		
+			
 	def selection_and_crossover(self, k):
 		for i in xrange(k):
 			sorted(self.cur_groups[i],key = lambda sol: sol.rate_value, reverse=True);
@@ -486,6 +590,9 @@ if __name__ == "__main__":
 	parser.add_argument("--pms", help="nms of physical machines")
 	parser.add_argument("--mutp", help="prob of mutation")
 	parser.add_argument("--k", help="number of clusters")
+	parser.add_argument("--type", help="method type: cc= classification based clustering method c = clustering based method trad = traditional method")
+                                            
+					    
 	args = parser.parse_args()
 	#Utiltools.generateRadomTestData(args.vms);
 
@@ -495,11 +602,23 @@ if __name__ == "__main__":
 	BinItemManager.initalizeBins(args.pms);
 	clsf.initializecvec(BinItemManager.items);
 	print("initalization is completed...");
-	start = time.clock();	
-	GA = GeneticAlgorithm(BinItemManager.items, BinItemManager.bins);
-	GA.genetic_process(args.error, args.iter, args.mutp, int(args.k));
-	#GA.trad_genetic_process(args.error, args.iter, args.mutp);
-	end  = time.clock();
-	print("read: %f s" % (end - start));
+
+        GA = GeneticAlgorithm(BinItemManager.items, BinItemManager.bins);
+        if(args.type == "cc"):
+		start = Utiltools.logtime("start", "classification based clustering genetic method", 0)
+		GA.genetic_process(args.error, args.iter, args.mutp, int(args.k));
+		Utiltools.logtime("end", "classification based clustering genetic method", start)
+		global kmeanstime
+		Utiltools.logtime("none", "kmeans in total", kmeanstime)
+        elif(args.type == "trad"):
+		start = Utiltools.logtime("start", "traditional genetic method", 0)
+		GA.trad_genetic_process(args.error, args.iter, args.mutp);
+		Utiltools.logtime("end", "traditional genetic method", start)
+		Utiltools.logtime("none", "kmeans in total", kmeanstime)
+	elif(args.type == "c"):
+		start = Utiltools.logtime("start", "clustering genetic method", 0)
+		GA.genetic_process_clusteringbased(args.error, args.iter, args.mutp, int(args.k));
+		Utiltools.logtime("end", "cluterting genetic method", start)
+		Utiltools.logtime("none", "kmeans in total", kmeanstime)
 	GA.report();
 
