@@ -13,6 +13,7 @@ import util.svmpreprocess as svm
 import util.Kmeans as kmeans
 from operator import attrgetter
 
+
 PHY_MEM = 140000;#number is temporary; and resources occupied is measured directly by simple minus
 CPU_CAPs = 20000;
 IO_CAPs = 20000; 
@@ -22,6 +23,7 @@ MUTATION_RATE = 0.01;
 MAX_POPS = 100;
 alfa = 50000;
 kmeanstime = 0;
+dsrc="random";
 
 MEASEQ = [PHY_MEM, CPU_CAPs, IO_CAPs, NET_CAPs];
 
@@ -123,19 +125,39 @@ class DataReader:
 	def readForOneVirtual(cls, fileName, no):
 		count = 0;
 		res_request = [];	
+		vms = [];
 		f = open(fileName, "r");
 		count = 0;
-		for line in f.readlines():
-			sample = dict();
-			if(count>0):
-				sample["PHY_MEM"] = line.split()[0];	
-				sample["CPU_CAPs"] = line.split()[1];	
-				sample["IO_CAPs"] = line.split()[2];	
-				sample["NET_CAPs"] = line.split()[3];
+
+		global dsrc;
+		if(dsrc == "random"):
+			for line in f.readlines():
+				sample = dict();
+				if(count>0):
+					sample["PHY_MEM"] = line.split()[0];	
+					sample["CPU_CAPs"] = line.split()[1];	
+					sample["IO_CAPs"] = line.split()[2];	
+					sample["NET_CAPs"] = line.split()[3];
+					res_request.append(sample);	
+				count+=1;
+			virtualMachine = VirtualMachine(res_request, no);
+		elif(dsrc == "alibaba"):
+			for line in f.readlines():
+				sample = dict();
+				data = line.split("\t");
+				sample["PHY_MEM"] = data[0];	
+				sample["CPU_CAPs"] = data[1];	
+				sample["IO_CAPs"] = data[2];	
+				sample["NET_CAPs"] = 0;
 				res_request.append(sample);	
-			count+=1;
-		virtualMachine = VirtualMachine(res_request, no);
-		return virtualMachine;
+				virtualMachine = VirtualMachine(res_request, count);
+				count += 1;
+				vms.append(virtualMachine);
+
+		if(dsrc=="random"):
+			return virtualMachine;
+		elif(dsrc=="alibaba"):
+			return vms;
 
 	@classmethod			
 	def readPhysicalParameter(cls, fileName):
@@ -155,8 +177,12 @@ class BinItemManager:
 	items = [];
 	@classmethod
 	def initalizeItems(cls, numsOfVm):
-		for i in range(int(numsOfVm)):
-			BinItemManager.items.append(DataReader.readForOneVirtual("../data/vm"+str(i)+".txt", i))
+		global dsrc;
+		if(dsrc == "alibaba"):
+			BinItemManager.items = DataReader.readForOneVirtual("../data/aliDataFile", 0)
+		elif(dsrc == "random"):
+			for i in range(int(numsOfVm)):
+				BinItemManager.items.append(DataReader.readForOneVirtual("../data/vm"+str(i)+".txt", i))
 				
 	@classmethod
 	def initalizeBins(cls, numsOfBins):
@@ -591,16 +617,21 @@ if __name__ == "__main__":
 	parser.add_argument("--mutp", help="prob of mutation")
 	parser.add_argument("--k", help="number of clusters")
 	parser.add_argument("--type", help="method type: cc= classification based clustering method c = clustering based method trad = traditional method")
+	parser.add_argument("--datasrc", help="random: randomly generated data; alibaba: alibaba published cluster data");
                                             
-					    
+
 	args = parser.parse_args()
 	#Utiltools.generateRadomTestData(args.vms);
 
 
 	clsf = classifier();	
+	global dsrc
+	dsrc = args.datasrc;
 	BinItemManager.initalizeItems(args.vms);
 	BinItemManager.initalizeBins(args.pms);
+        start = Utiltools.logtime("start", "initialize classification vectorization", 0)
 	clsf.initializecvec(BinItemManager.items);
+        Utiltools.logtime("end", "initialization of classificaiton vectorization take time in total", start)
 	print("initalization is completed...");
 
         GA = GeneticAlgorithm(BinItemManager.items, BinItemManager.bins);
