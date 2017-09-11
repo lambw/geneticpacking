@@ -134,10 +134,10 @@ class DataReader:
 			for line in f.readlines():
 				sample = dict();
 				if(count>0):
-					sample["PHY_MEM"] = line.split()[0];	
-					sample["CPU_CAPs"] = line.split()[1];	
-					sample["IO_CAPs"] = line.split()[2];	
-					sample["NET_CAPs"] = line.split()[3];
+					sample["PHY_MEM"] = float(line.split()[0]);	
+					sample["CPU_CAPs"] = float(line.split()[1]);	
+					sample["IO_CAPs"] = float(line.split()[2]);	
+					sample["NET_CAPs"] = float(line.split()[3]);
 					res_request.append(sample);	
 				count+=1;
 			virtualMachine = VirtualMachine(res_request, no);
@@ -347,6 +347,8 @@ class GeneticAlgorithm:
 		print("fitnessvalue	detailsofplan")
 		for i in xrange(len(self.cur_pops)):
 			print("|%s|\t%s|%s\t"%(self.cur_pops[i].rate_value, self.cur_pops[i].numsOfitemed(), self.cur_pops[i].solution_vector))
+
+		
 			
 	def traditionalseleccross(self):
 		self.next_candidates = [];
@@ -445,6 +447,16 @@ class GeneticAlgorithm:
 			if(self.ifPdVectSame(pd[i], vect)):
 				return True;
 		return False;
+
+	def logpd(self, lst, info):
+		f = open("../log/pdd.log", "a");
+		f.write("----------------"+info+"-------------------\n")
+		for i in xrange(len(lst)):
+			for j in xrange(len(lst[i])):
+				for x in xrange(len(lst[i][j])):
+					f.write(str(lst[i][j][x])+"\t");
+			f.write("\n");
+	
 		
 				
 	def k_means_classify(self, k):
@@ -465,6 +477,7 @@ class GeneticAlgorithm:
 				lst.append(sample);
 
 	        self.writePddInfo("pddscale", pdlen, len(self.cur_pops), 0, 0);
+		self.logpd(lst, "classify based pd");
 		print("data for clustering has been prepared...");
 		print("The size of pn vectors is %s"%(len(lst)));
 
@@ -494,8 +507,10 @@ class GeneticAlgorithm:
 				lst.append(sample);
 
 	        self.writePddInfo("pddscale", pdlen, len(self.cur_pops), 0, 0);
+		self.logpd(lst, "clustering based pd");
 		print("data for clustering has been prepared...");
 		print("The size of pn vectors is %s"%(len(lst)));
+
 		start = Utiltools.logtime("start", "non-classification based kmeans", 0);
 		assignment =  kmeans.kmeans(lst, k);
 		global kmeanstime
