@@ -1,26 +1,2 @@
-------->initialization of classificaiton vectorization take time in totaltakes0.00644588470459s to be finished
-------->classification based kmeanstakes0.0126950740814s to be finished
-------->classification based kmeanstakes0.0151069164276s to be finished
-------->classification based kmeanstakes0.0115549564362s to be finished
-------->classification based kmeanstakes0.0065221786499s to be finished
-------->classification based kmeanstakes0.0105798244476s to be finished
-------->classification based kmeanstakes0.00882196426392s to be finished
-------->classification based kmeanstakes0.0129430294037s to be finished
-------->classification based kmeanstakes0.00520896911621s to be finished
-------->classification based kmeanstakes0.00733113288879s to be finished
-------->classification based kmeanstakes0.00845408439636s to be finished
-------->classification based clustering genetic methodtakes0.826902151108s to be finished
-------->kmeans in totaltakes0.0992181301117s to be finished
-------->initialization of classificaiton vectorization take time in totaltakes0.00562500953674s to be finished
-------->non-classification based kmeanstakes0.0058970451355s to be finished
-------->non-classification based kmeanstakes0.0279021263123s to be finished
-------->non-classification based kmeanstakes0.0279400348663s to be finished
-------->non-classification based kmeanstakes0.0481848716736s to be finished
-------->non-classification based kmeanstakes0.039717912674s to be finished
-------->non-classification based kmeanstakes0.0311939716339s to be finished
-------->non-classification based kmeanstakes0.021281003952s to be finished
-------->non-classification based kmeanstakes0.0754470825195s to be finished
-------->non-classification based kmeanstakes0.0507152080536s to be finished
-------->non-classification based kmeanstakes0.0474288463593s to be finished
-------->cluterting genetic methodtakes1.31289792061s to be finished
-------->kmeans in totaltakes0.37570810318s to be finished
+------->initialization of classificaiton vectorization take time in totaltakes0.207486867905s to be finished
+------->classification based kmeanstakes0.0916650295258s to be finished
